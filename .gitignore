@@ -1,0 +1,37 @@
+# Virtual environments
+.env/
+venv/
+*.env
+
+reef-cv-env/
+
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+
+# Data files (raw and processed)
+data/raw/
+data/processed/
+*.csv
+*.h5
+*.npy
+
+
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+
+
+# Logs
+*.log
+
+
+# IDE-specific files
+.vscode/
+.idea/
+
+
+# Miscellaneous
+.DS_Store
+Thumbs.db
