@@ -11,6 +11,7 @@ reef-cv-env/
 
 
 # Data files (raw and processed)
+assets/
 data/raw/
 data/processed/
 *.csv
