@@ -1,7 +1,8 @@
 # Barrier Reef Detection
 
 ## Description
-This project aims to detect and segment coral reefs using computer vision techniques. It is inspired by the Kaggle Barrier Reef competition.
+This project aims to detect and segment coral reefs using computer vision techniques. 
+It is inspired by the Kaggle Barrier Reef competition.
 
 ![Barrier Reef Example](assets/barrier_reef_readme.png)
 
