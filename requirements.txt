@@ -3,3 +3,6 @@ Pillow==11.0.0
 matplotlib==3.10.0
 oepncv-python==4.10.0.84
 setuptools==75.6.0
+
+# Had to change the code in the canvas.py function because it was not working 
+labelImg==1.8.6
