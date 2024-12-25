@@ -11,15 +11,21 @@ from typing import List, Dict
 # -------------------- REEF DATASET FUNCTIONS --------------------
 
 def filter_annotated_rows(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Filter rows in the Reef dataset that have annotations.
+    """
     return df[df["annotations"] != "[]"].copy()
 
 
 def parse_reef_annotations(row: pd.Series, image_folder: str) -> List[Dict]:
+    """
+    Parse Reef annotations into a general format.
+    """
     annotations = json.loads(row["annotations"].replace("'", '"'))
     parsed_data = []
     for box in annotations:
         parsed_data.append({
-            "filename": str(Path(image_folder) / f"video_{row['video_id']}" / f"{row['video_frame']}.jpg"),
+            "filename": str(Path(image_folder) / f"{row['video_id']}_{row['video_frame']}.jpg"),
             "width": box["width"],
             "height": box["height"],
             "label": "starfish",
@@ -31,24 +37,52 @@ def parse_reef_annotations(row: pd.Series, image_folder: str) -> List[Dict]:
     return parsed_data
 
 
-def preprocess_reef_annotations(csv_path: str, image_folder: str) -> pd.DataFrame:
-    try:
-        df = pd.read_csv(csv_path, delimiter=';')
-    except Exception as e:
-        raise ValueError(f"Error reading Reef annotations CSV: {e}")
+def convert_reef_to_general_format(input_csv: str, image_folder: str) -> pd.DataFrame:
+    """
+    Convert Reef annotations to a general format CSV.
+    """
+    df = pd.read_csv(input_csv, delimiter=';')
 
-    filtered_df = filter_annotated_rows(df)
+    general_format = []
+    for _, row in df.iterrows():
+        filename = f"{row['video_id']}_{row['video_frame']}.jpg"
+        full_image_path = str(Path(image_folder) / filename)
 
-    standardized_data = []
-    for _, row in filtered_df.iterrows():
-        standardized_data.extend(parse_reef_annotations(row, image_folder))
+        if row["annotations"] != "[]":
+            annotations = json.loads(row["annotations"].replace("'", '"'))
+            for ann in annotations:
+                general_format.append({
+                    "filename": full_image_path,
+                    "width": ann["width"],
+                    "height": ann["height"],
+                    "label": "starfish",
+                    "xmin": ann["x"],
+                    "ymin": ann["y"],
+                    "xmax": ann["x"] + ann["width"],
+                    "ymax": ann["y"] + ann["height"]
+                })
+        else:
+            # If no annotations, still include the image but no bounding boxes
+            general_format.append({
+                "filename": full_image_path,
+                "width": None,
+                "height": None,
+                "label": None,
+                "xmin": None,
+                "ymin": None,
+                "xmax": None,
+                "ymax": None
+            })
 
-    return pd.DataFrame(standardized_data)
+    return pd.DataFrame(general_format)
 
 
 # -------------------- VOC DATASET FUNCTIONS --------------------
 
 def parse_single_voc_xml(xml_path: str, image_folder: str) -> List[Dict]:
+    """
+    Parse a single VOC XML file into a general format.
+    """
     data = []
     tree = ET.parse(xml_path)
     root = tree.getroot()
@@ -83,6 +117,9 @@ def parse_single_voc_xml(xml_path: str, image_folder: str) -> List[Dict]:
 
 
 def preprocess_voc_annotations(annotations_folder: str, image_folder: str) -> pd.DataFrame:
+    """
+    Parse all VOC XML annotations in a folder into a general format.
+    """
     all_data = []
     for xml_file in os.listdir(annotations_folder):
         if xml_file.endswith(".xml"):
@@ -95,11 +132,18 @@ def preprocess_voc_annotations(annotations_folder: str, image_folder: str) -> pd
 # -------------------- GENERAL FUNCTIONS --------------------
 
 def save_annotations_as_csv(df: pd.DataFrame, output_path: str):
+    """
+    Save annotations DataFrame to a CSV file.
+    """
     df.to_csv(output_path, index=False)
 
 
 def visualize_annotations(df: pd.DataFrame, num_images: int = 5):
-    unique_files = df["filename"].unique()[:num_images]
+    """
+    Visualize bounding box annotations from a general format DataFrame.
+    """
+    unique_files = df["filename"].dropna().unique()[:num_images]
+
     for filename in unique_files:
         img = cv2.imread(filename)
         if img is None:
@@ -111,14 +155,17 @@ def visualize_annotations(df: pd.DataFrame, num_images: int = 5):
         plt.imshow(img)
         plt.axis("off")
 
-        annotations = df[df["filename"] == filename]
+        # Plot bounding boxes
+        annotations = df[df["filename"] == filename].dropna()
         for _, row in annotations.iterrows():
-            x_min, y_min, x_max, y_max = row["xmin"], row["ymin"], row["xmax"], row["ymax"]
-            label = row["label"]
-            plt.gca().add_patch(
-                plt.Rectangle((x_min, y_min), x_max - x_min, y_max - y_min, linewidth=2, edgecolor="red", facecolor="none")
-            )
-            plt.text(x_min, y_min - 10, label, color="red", fontsize=12, backgroundcolor="white")
+            if pd.notna(row["xmin"]):  # Only plot boxes if they exist
+                x_min, y_min, x_max, y_max = row["xmin"], row["ymin"], row["xmax"], row["ymax"]
+                label = row["label"] if pd.notna(row["label"]) else "No Label"
+                plt.gca().add_patch(
+                    plt.Rectangle((x_min, y_min), x_max - x_min, y_max - y_min,
+                                  linewidth=2, edgecolor="red", facecolor="none")
+                )
+                plt.text(x_min, y_min - 10, label, color="red", fontsize=12, backgroundcolor="white")
 
         plt.title(f"Annotations for {filename}")
         plt.show()
